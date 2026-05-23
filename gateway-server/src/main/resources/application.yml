@@ -3,8 +3,9 @@ spring:
     name: gateway-server
   cloud:
     gateway:
-      mvc:
-        routes:
+      server:
+        webmvc:
+          routes:
           - id: identity-service
             uri: lb://identity-service
             predicates:

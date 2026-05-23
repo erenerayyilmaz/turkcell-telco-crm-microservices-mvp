@@ -140,6 +140,15 @@ services:
       - pgdata-ticket-service:/var/lib/postgresql/data
     networks:
       - telcocrm-net
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: spring-pgadmin-telcom-crm
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5151:80"
 
 networks:
   telcocrm-net:
