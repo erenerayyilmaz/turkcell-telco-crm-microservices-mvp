@@ -4,3 +4,15 @@ spring:
     username: ${DB_USER:usage_user}
     password: ${DB_PASS:secret}
     driver-class-name: org.postgresql.Driver
+  # --- usage-events tuketicisi (UsageRecorded -> usage_records; inbox idempotent) ---
+  cloud:
+    function:
+      definition: consumeUsageEvents
+    stream:
+      bindings:
+        consumeUsageEvents-in-0:
+          destination: usage-events
+          group: usage-service-group
+      kafka:
+        binder:
+          brokers: ${KAFKA_BROKERS:localhost:9092}
