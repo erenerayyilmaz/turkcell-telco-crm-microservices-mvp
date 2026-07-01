@@ -251,11 +251,57 @@ telco-crm-platform/
 
 ## Sonraki Adımlar
 
-- ✅ **Saga orchestration uygulandı** — order orchestrator (`saga_states`) + reserve→ödeme→aktivasyon + compensation + timeout. Bkz. [SAGA.md](SAGA.md).
-- ✅ **subscription / payment servisleri** saga akışına dahil edildi (iskeletten dolduruldu).
-- ✅ **Rate limiting entegre edildi** — gateway'de Bucket4j + Redis (Lettuce) token-bucket; user (JWT `sub`) / IP başına 100 req/dk; 429 + `Retry-After` + `X-RateLimit-*`. Bkz. §10.
-- Feign çağrılarına Resilience4j circuit breaker + fallback.
-- OutboxPoller için çoklu-instance güvenliği (`SELECT ... FOR UPDATE SKIP LOCKED`).
-- Saga: compensation ack'lerini bekleyen iki-fazlı iptal + Kafka DLQ/retry; aylık bill-run + `InvoiceGenerated → Payment` (recurring auto-pay).
+Temel mimari oturdu: config, service discovery, gateway + BFF, Keycloak güvenlik, event-driven
+Outbox/Inbox, Saga orchestration, mediator-tabanlı CQRS, rate limiting ve observability entegre.
+Aşağıdaki yol haritası **product-ready** olmak için kalan işleri öncelik sırasıyla listeler
+(**frontend hariç** — o kapsam ayrı: [FRONTEND.md](FRONTEND.md)).
 
-- minio
+### ✅ Tamamlananlar
+- **Saga orchestration** — order orchestrator (`saga_states`) + reserve→ödeme→aktivasyon + compensation + timeout. Bkz. [SAGA.md](SAGA.md).
+- **subscription / payment** saga akışına participant olarak dahil (outbox/inbox + `audit_log`).
+- **Rate limiting** — gateway'de Bucket4j + Redis; user (JWT `sub`) / IP başına 100 req/dk; 429 + `Retry-After` + `X-RateLimit-*`. Bkz. §10.
+- **CQRS (mediator)** — `common-lib` framework + auto-config; product-catalog / order / customer feature'ları. Bkz. [CQRS.md](CQRS.md).
+
+### Faz 1 — Domain'i tamamla (boş servisler → CQRS ile)
+Şu an yalnızca `Application.java` iskeleti olan **identity / usage / ticket** servisleri; CQRS
+framework'ü auto-config ile hazır olduğundan ekstra kurulum gerektirmez. Her biri için izlenecek
+yol ([CQRS.md](CQRS.md) §6): Flyway migration + entity/repo → `application/features/<entity>/{command,query,mapper,rule}`
+vertical-slice handler'lar → controller yalnızca `Mediator`'a bağlı, cevap `ApiResponse<T>` → okuma
+yoğunsa `@Cacheable`/yazmada `@CacheEvict`, erişim `@PreAuthorize` ile rol bazlı.
+- **identity-service** — müşteri/kullanıcı profili CRUD (auth Keycloak'ta kalır; burada profil verisi). Opsiyonel: kayıtta Keycloak Admin API ile user provisioning.
+- **usage-service** — CDR/kullanım kaydı: Kafka'dan usage event consume + dönem/abonelik bazlı agregasyon query'leri (billing için veri kaynağı).
+- **ticket-service** — destek talebi CRUD + durum makinesi (`OPEN→IN_PROGRESS→RESOLVED→CLOSED`); CSR rolü.
+
+> Not: `subscription/payment` (saga participant) ve `billing/notification` (saf Kafka consumer) event-handler
+> yapısındadır; bunlara controller→command/query split'i **uygulanmaz** ([CQRS.md](CQRS.md) §5).
+
+### Faz 2 — Dayanıklılık & veri tutarlılığı
+- **Resilience4j** — Feign çağrılarına (`order → customer / product-catalog`) circuit breaker + retry + timeout + fallback.
+- **OutboxPoller çoklu-instance güvenliği** — `SELECT ... FOR UPDATE SKIP LOCKED` (order/subscription/payment) → yatay ölçekte çift publish yok.
+- **Kafka DLQ + retry** — consumer hatalarında dead-letter topic + backoff; zehirli mesaj izolasyonu.
+- **Saga sertleştirme** — compensation ack'lerini bekleyen iki-fazlı iptal; saga timeout job'ının prod ayarları.
+- **Recurring billing** — aylık bill-run scheduler + `InvoiceGenerated → Payment` (otomatik tahsilat).
+
+### Faz 3 — Test & kalite (kritik: şu an ~0 kapsam)
+- **Unit test** — handler / business-rule / mapper; özellikle saga durum geçişleri ve compensation.
+- **Integration test** — **Testcontainers** (Postgres + Kafka + Redis): outbox→consume→inbox idempotency, saga happy-path + `_FAIL` compensation.
+- **Contract / API test** — OpenAPI spec doğrulama; kritik akışlar için Postman/newman koleksiyonu CI'da.
+- **Coverage gate** — JaCoCo eşiği (örn. %70 satır) build'de zorunlu.
+
+### Faz 4 — Paketleme, CI/CD & deployment
+- **Dockerfile** (servis başına, layered veya Jib) — şu an yalnızca altyapı compose'da; iş servislerinin imajı yok.
+- **CI pipeline** (GitHub Actions) — `mvn verify` + Testcontainers + imaj build/push; PR'da otomatik gate.
+- **Kubernetes / Helm** — docx §5 stateless/HPA hedefi: deployment + service + HPA + `readiness/liveness/startup` probe + ConfigMap/Secret.
+
+### Faz 5 — Güvenlik sertleştirme (prod)
+- **Secret yönetimi** — README/realm/config'teki gömülü client-secret'ları çıkar; Vault veya K8s Secret + config-server `{cipher}` şifreleme.
+- **TLS/HTTPS** — gateway/BFF önünde TLS termination; servisler-arası mTLS (opsiyonel, service mesh).
+- **Gateway sertleştirme** — CORS whitelist, güvenlik header'ları, downstream timeout/retry, request-size limit.
+- **Keycloak prod** — dev realm import yerine yönetilen realm; token süre/rotasyon; client-credential rotasyonu.
+
+### Faz 6 — Prod runtime & operasyon
+- **Prod profilleri** — HikariCP pool tuning, actuator expose kısıtlama, `application-prod.yaml`'ı doldur (şu an yalnızca swagger'ı kapatıyor).
+- **Alerting** — Prometheus Alertmanager kuralları (error-rate, saga stuck, consumer lag, 429 spike) + Grafana SLO paneli.
+- **Yük testi** — k6/Gatling ile gateway + saga throughput; rate-limit davranış doğrulaması.
+- **Object storage (MinIO)** — S3-uyumlu depolama: fatura PDF'i / belge saklama (usage/billing çıktıları için).
+- **Runbook** — deploy/rollback, saga manuel compensation, DLQ replay prosedürleri.
