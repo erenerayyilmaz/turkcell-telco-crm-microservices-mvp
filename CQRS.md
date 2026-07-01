@@ -203,4 +203,4 @@ public class CatalogController {
 
 ## 6. Test Edilmesi
 
-Yaptığımız bu implementasyonu test etmek için proje kök dizininde yer alan **[telco_crm_postman_collection.json](file:///c:/Users/User/Desktop/Üniversite/turkcell/pair-project/turkcell-telco-crm-microservices-mvp/telco_crm_postman_collection.json)** koleksiyonunu kullanabilirsiniz.
+Yaptığımız bu implementasyonu test etmek için proje kök dizininde yer alan **[telco_crm_postman_collection.json](./telco_crm_postman_collection.json)** koleksiyonunu kullanabilirsiniz.
