@@ -1,5 +1,6 @@
 package com.turkcell.customerservice.dto;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 public record CustomerResponse(
@@ -7,5 +8,7 @@ public record CustomerResponse(
         String type,
         String firstName,
         String lastName,
+        String identityNumber,
+        LocalDate dateOfBirth,
         String status) {
 }

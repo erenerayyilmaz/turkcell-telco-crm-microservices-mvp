@@ -148,8 +148,8 @@ public class OrderSagaOrchestrator {
             advance(saga, SagaSteps.COMPLETED, ctx);
             setOrderStatus(ev.orderId(), OrderStatus.FULFILLED);
             outbox.enqueue(SagaTopics.ORDER_EVENTS, "OrderConfirmed", ev.orderId(),
-                    new OrderConfirmed(UUID.randomUUID(), ev.orderId(), ctx.customerId(), ctx.tariffCode(),
-                            ctx.msisdn(), ctx.amount(), ctx.currency()));
+                    new OrderConfirmed(UUID.randomUUID(), ev.orderId(), ctx.customerId(), ev.subscriptionId(),
+                            ctx.tariffCode(), ctx.msisdn(), ctx.amount(), ctx.currency()));
             log.info("order={} abonelik aktif (sub={}) -> FULFILLED", ev.orderId(), ev.subscriptionId());
         }
         markProcessed(ev.eventId());

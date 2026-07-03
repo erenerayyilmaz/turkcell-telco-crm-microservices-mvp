@@ -2,18 +2,22 @@ package com.turkcell.orderservice.controller;
 
 import java.util.UUID;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.turkcell.commonlib.cache.RestPage;
 import com.turkcell.commonlib.cqrs.Mediator;
 import com.turkcell.commonlib.dto.ApiResponse;
 import com.turkcell.orderservice.application.features.order.command.place.PlaceOrderCommand;
 import com.turkcell.orderservice.application.features.order.query.get.GetOrderQuery;
+import com.turkcell.orderservice.application.features.order.query.list.ListOrdersQuery;
 import com.turkcell.orderservice.dto.OrderResponse;
 
 import jakarta.validation.Valid;
@@ -39,5 +43,18 @@ public class OrderController {
     @PreAuthorize("hasAnyRole('CUSTOMER','CSR')")
     public ApiResponse<OrderResponse> get(@PathVariable UUID id) {
         return ApiResponse.ok(mediator.send(new GetOrderQuery(id)), "Siparis durumu");
+    }
+
+    /**
+     * Sayfali siparis listesi; customerId/status filtreli (FE orders tablosu).
+     * Yalnizca CSR/ADMIN: platformda henuz kullanici->musteri baglantisi olmadigi icin
+     * CUSTOMER'a "kendi siparisleri" filtrelemesi yapilamiyor (FRONTEND.md acik karar).
+     */
+    @GetMapping
+    @PreAuthorize("hasAnyRole('CSR','ADMIN')")
+    public ApiResponse<RestPage<OrderResponse>> list(Pageable pageable,
+                                                     @RequestParam(required = false) UUID customerId,
+                                                     @RequestParam(required = false) String status) {
+        return ApiResponse.ok(mediator.send(new ListOrdersQuery(pageable, customerId, status)));
     }
 }

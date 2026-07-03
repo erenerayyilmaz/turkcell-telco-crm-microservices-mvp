@@ -145,6 +145,18 @@ spring:
 - **Retry:** Feign `Retryer` — ağ-seviyesi hatada (connect/read `IOException`) 1 yeniden deneme; iki çağrı da idempotent GET. Retry circuit breaker'ın İÇİNDE çalışır, breaker yalnızca nihai sonucu sayar.
 - **Thread tuzağı:** `spring.cloud.circuitbreaker.resilience4j.disable-thread-pool: true` — çağrı aynı thread'de kalır; aksi halde Bearer relay interceptor'ı (`RequestContextHolder`) ve trace context'i thread-local'dan okuyamazdı. Timeout'u Feign `connect-timeout: 2s / read-timeout: 5s` sağlar.
 
+### 13. Recurring Billing (aylık bill-run + otomatik tahsilat)
+- **Kayıt:** Saga `OrderConfirmed` yayınlarken artık `subscriptionId` da taşır; billing `bill_cycles` satırına abonelik + aylık ücret + para birimini yazar (V3).
+- **Bill-run:** `BillRunService` (`@Scheduled`, demo: 1 dk; `FOR UPDATE SKIP LOCKED` → çoklu-instance güvenli) vadesi gelen döngüler için fatura keser (`ISSUED`, KDV %20, vade +15 gün) + `invoice_lines` + **aynı transaction'da** outbox'a `ChargeInvoiceCommand` yazar; döngüyü +1 ay ilerletir.
+- **Auto-pay:** payment `ChargeInvoiceCommand`'i işler (mock PSP, aynı 1000 TRY limiti) → reply `InvoicePaid`/`InvoicePaymentFailed` → **`invoice-events`** topic'i → billing faturayı `PAID`/`PAYMENT_FAILED` işaretler. Her iki uçta inbox idempotency + transactional outbox.
+- **Okuma API'si:** `GET /api/billing/invoices` (+`/{id}` kalemli), `GET /api/billing/bill-cycles` — sayfalı, `BILLING_ADMIN/CSR/ADMIN`.
+
+### 14. FE Hazırlık API'leri (BFF `/api/me` + eksik okuma uçları)
+- **BFF `GET /api/me`:** SPA'nın menü/route-guard ihtiyacı — session'daki access token'dan `realm_access.roles` okunur; `{username, email, fullName, roles[]}` döner.
+- **BFF 401 sözleşmesi:** session düşmüş `/api/**` XHR'ına artık 302-Keycloak yerine **temiz 401** döner (`HttpStatusEntryPoint`); tarayıcı navigasyonu login redirect'inde kalır. FE axios interceptor'ı 401 → login yapar.
+- **Yeni/iyileştirilen uçlar:** `GET /api/subscriptions` (+`/{id}`), `GET /api/orders` (sayfalı liste), `GET/POST/PUT /api/customers` (sayfalı + `q` araması + create/update), billing uçları (bkz. §13). Detaylı sayfa↔endpoint eşlemesi: [FRONTEND.md](FRONTEND.md) §13.
+- **Keycloak:** `telco-bff` client'ına Vite dev origin'i (`http://localhost:5173`) redirect/webOrigin olarak eklendi.
+
 ## Başlangıç
 
 ### 1. Altyapıyı ayağa kaldır
@@ -287,8 +299,9 @@ Aşağıdaki yol haritası **product-ready** olmak için kalan işleri öncelik 
 - ✅ **Resilience4j** — Feign çağrılarına (`order → customer / product-catalog`) circuit breaker + retry + timeout + fallback; 4xx devreyi saymaz, down/timeout → 503 `SERVICE_UNAVAILABLE`. Bkz. §12.
 - ✅ **OutboxPoller çoklu-instance güvenliği** — `SELECT ... FOR UPDATE SKIP LOCKED` (order/subscription/payment) → yatay ölçekte çift publish yok.
 - ✅ **Kafka DLQ + retry** — consumer hatalarında 3 deneme (üslü backoff) + `error.<topic>.<group>` dead-letter topic; zehirli mesaj izolasyonu (null `eventId`/bozuk payload artık sonsuz redelivery yapmaz). Tüm consumer'lara ortak (`application.yaml`).
-- **Saga sertleştirme** — compensation ack'lerini bekleyen iki-fazlı iptal; saga timeout job'ının prod ayarları.
-- **Recurring billing** — aylık bill-run scheduler + `InvoiceGenerated → Payment` (otomatik tahsilat).
+- ✅ **Recurring billing** — aylık bill-run (`SKIP LOCKED`) + fatura kesimi + `ChargeInvoiceCommand → payment` auto-pay + `invoice-events` reply → invoice `PAID/PAYMENT_FAILED`. Bkz. §13.
+- ✅ **FE hazırlık API'leri** — BFF `/api/me` + 401 sözleşmesi; subscription/billing okuma API'leri; order list; customer sayfalama/arama/create/update. Bkz. §14 ve [FRONTEND.md](FRONTEND.md).
+- **Saga sertleştirme** — compensation ack'lerini bekleyen iki-fazlı iptal; saga timeout job'ının prod ayarları. *(Bilinçli erteleme: Faz 3'te — saga çekirdeğine önce Testcontainers güvence ağı kurulup öyle dokunulacak.)*
 
 ### Faz 3 — Test & kalite (kritik: şu an ~0 kapsam)
 - **Unit test** — handler / business-rule / mapper; özellikle saga durum geçişleri ve compensation.

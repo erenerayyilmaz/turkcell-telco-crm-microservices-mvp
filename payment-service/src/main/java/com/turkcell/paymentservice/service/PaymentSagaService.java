@@ -9,7 +9,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.turkcell.commonlib.saga.ChargeInvoiceCommand;
 import com.turkcell.commonlib.saga.ChargePaymentCommand;
+import com.turkcell.commonlib.saga.InvoicePaid;
+import com.turkcell.commonlib.saga.InvoicePaymentFailed;
 import com.turkcell.commonlib.saga.PaymentCompleted;
 import com.turkcell.commonlib.saga.PaymentFailed;
 import com.turkcell.commonlib.saga.PaymentRefunded;
@@ -97,6 +100,58 @@ public class PaymentSagaService {
             outbox.enqueue(SagaTopics.SAGA_REPLIES, "PaymentFailed", cmd.orderId(),
                     new PaymentFailed(UUID.randomUUID(), cmd.orderId(), "tutar limiti asti: " + cmd.amount()));
             log.info("payment: order={} tahsilat RED (tutar={})", cmd.orderId(), cmd.amount());
+        }
+
+        markProcessed(cmd.eventId());
+    }
+
+    /**
+     * Recurring billing: bill-run faturasinin otomatik tahsilati (mock PSP).
+     * Saga DISI akistir; reply saga-replies'a degil invoice-events'e doner (billing tuketir).
+     * Ayni DEMO knob'u kullanir: tutar {@link #FAIL_THRESHOLD} ustuyse RED -> InvoicePaymentFailed.
+     */
+    @Transactional
+    public void chargeInvoice(ChargeInvoiceCommand cmd) {
+        if (processedEventRepository.existsById(cmd.eventId())) {
+            log.info("payment: komut zaten islendi, atlaniyor. eventId={}", cmd.eventId());
+            return;
+        }
+
+        boolean approved = cmd.amount().compareTo(FAIL_THRESHOLD) <= 0;
+
+        Payment payment = new Payment();
+        payment.setInvoiceId(cmd.invoiceId());
+        payment.setCustomerId(cmd.customerId());
+        payment.setAmount(cmd.amount());
+        payment.setCurrency(cmd.currency());
+        payment.setMethod("AUTO_PAY");
+        payment.setStatus(approved ? "PAID" : "FAILED");
+        if (approved) {
+            payment.setPaidAt(Instant.now());
+            payment.setExternalRef("PSP-" + UUID.randomUUID());
+        }
+        payment.setCreatedAt(Instant.now());
+        paymentRepository.save(payment);
+
+        PaymentAttempt attempt = new PaymentAttempt();
+        attempt.setPaymentId(payment.getId());
+        attempt.setAttemptNo(1);
+        attempt.setResponse(approved ? "APPROVED" : "DECLINED: tutar limiti asti");
+        attempt.setAttemptedAt(Instant.now());
+        paymentAttemptRepository.save(attempt);
+
+        audit("Payment", payment.getId(), approved ? "INVOICE_CHARGE_APPROVED" : "INVOICE_CHARGE_DECLINED",
+                "invoice=" + cmd.invoiceId() + " amount=" + cmd.amount() + " " + cmd.currency());
+
+        if (approved) {
+            outbox.enqueue(SagaTopics.INVOICE_EVENTS, "InvoicePaid", cmd.invoiceId(),
+                    new InvoicePaid(UUID.randomUUID(), cmd.invoiceId(), payment.getId()));
+            log.info("payment: invoice={} otomatik tahsilat OK (payment={})", cmd.invoiceId(), payment.getId());
+        } else {
+            outbox.enqueue(SagaTopics.INVOICE_EVENTS, "InvoicePaymentFailed", cmd.invoiceId(),
+                    new InvoicePaymentFailed(UUID.randomUUID(), cmd.invoiceId(),
+                            "tutar limiti asti: " + cmd.amount()));
+            log.info("payment: invoice={} otomatik tahsilat RED (tutar={})", cmd.invoiceId(), cmd.amount());
         }
 
         markProcessed(cmd.eventId());

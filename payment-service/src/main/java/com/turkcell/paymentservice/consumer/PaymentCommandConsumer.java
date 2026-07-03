@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.Message;
 
+import com.turkcell.commonlib.saga.ChargeInvoiceCommand;
 import com.turkcell.commonlib.saga.ChargePaymentCommand;
 import com.turkcell.commonlib.saga.RefundPaymentCommand;
 import com.turkcell.commonlib.saga.SagaHeaders;
@@ -41,6 +42,8 @@ public class PaymentCommandConsumer {
             switch (type) {
                 case "ChargePaymentCommand" -> service.charge(objectMapper.readValue(body, ChargePaymentCommand.class));
                 case "RefundPaymentCommand" -> service.refund(objectMapper.readValue(body, RefundPaymentCommand.class));
+                // Recurring billing: bill-run faturasinin otomatik tahsilati (billing -> payment).
+                case "ChargeInvoiceCommand" -> service.chargeInvoice(objectMapper.readValue(body, ChargeInvoiceCommand.class));
                 default -> log.warn("Bilinmeyen payment komut tipi: {}", type);
             }
         };

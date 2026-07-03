@@ -151,13 +151,20 @@ Avantajları:
 ### Servis-bazlı spec sorunu (önemli)
 
 `OPENAPI.md` §2'de belirtildiği gibi, **gateway/BFF üzerinde merkezi OpenAPI aggregation
-şu an YOK**; her servis kendi spec'ini üretir. Şu an spec açık olan servisler:
+şu an YOK**; her servis kendi spec'ini üretir. Spec açık olan servisler (8/10 —
+yalnızca payment ve notification REST'sizdir; spec'ler gateway'den DEĞİL doğrudan servis
+portundan çekilir, `openapitools.json` bu portları hedeflemeli):
 
 | Servis | OpenAPI JSON |
 |---|---|
+| identity-service | `http://localhost:8081/v3/api-docs` |
 | customer-service | `http://localhost:8082/v3/api-docs` |
 | product-catalog-service | `http://localhost:8083/v3/api-docs` |
 | order-service | `http://localhost:8084/v3/api-docs` |
+| subscription-service | `http://localhost:8085/v3/api-docs` |
+| usage-service | `http://localhost:8086/v3/api-docs` |
+| billing-service | `http://localhost:8087/v3/api-docs` |
+| ticket-service | `http://localhost:8090/v3/api-docs` |
 
 İki yaklaşım:
 
@@ -198,23 +205,25 @@ FE token görmediği için login/logout akışı **BFF yönlendirmeleri** üzeri
 3. Başarılı login → BFF callback → session oluşur → cookie set edilir → FE'ye redirect.
 4. FE artık `/api/...` çağrılarını cookie ile yapar; BFF Bearer'ı downstream'e taşır.
 
-### Kullanıcı/rol bilgisini alma
+### Kullanıcı/rol bilgisini alma — ✅ HAZIR
 
 - FE'nin "kim giriş yaptı, hangi roller var" bilgisine ihtiyacı vardır (menü/route guard için).
-- Öneri: BFF'te `GET /api/me` (veya `/userinfo`) gibi bir endpoint ile session'daki
-  kullanıcı + rolleri (`CUSTOMER / CSR / CATALOG_ADMIN / BILLING_ADMIN / ADMIN`) döndürmek.
-  > Bu endpoint backend tarafında eklenmeli (FE tek başına ulaşamaz). Şu an yoksa
-  > **BFF için küçük bir ekleme** olarak planlanmalı.
+- **BFF'te `GET /api/me` eklendi**: `{username, email, fullName, roles[]}` döner.
+  Roller session'daki **access token**'ın `realm_access.roles` claim'inden okunur
+  (ID token'da realm rolleri yoktur — bu yüzden endpoint BFF'tedir, FE tek başına ulaşamaz).
 
 ### Logout
 
 - FE "Çıkış" → BFF logout endpoint'i (OIDC logout) → Keycloak session sonlanır →
   cookie temizlenir.
 
-### 401 davranışı
+### 401 davranışı — ✅ HAZIR
 
-- Session düşmüş/expired ise BFF 401 döner. FE axios interceptor'ı 401'i yakalayıp
-  kullanıcıyı login redirect'ine yönlendirmeli.
+- Session düşmüş/expired `/api/**` XHR'ına BFF **temiz 401** döner
+  (`SecurityConfig` → `HttpStatusEntryPoint`; tarayıcı navigasyonu ise oauth2Login
+  redirect'inde kalır). FE axios interceptor'ı 401'i yakalayıp login redirect'i yapar.
+- Vite dev origin'i (`http://localhost:5173`) Keycloak `telco-bff` client'ının
+  redirect/webOrigin listesine eklendi (proxy arkasında login akışı çalışır).
 
 ---
 
@@ -356,18 +365,31 @@ server: {
 
 ---
 
-## 13. Açık kararlar / backend'e bağlı noktalar
+## 13. Açık kararlar / backend'e bağlı noktalar — GÜNCEL DURUM
 
-Aşağıdakiler FE başlamadan önce netleştirilmeli (çoğu backend'i ilgilendirir):
-
-| Konu | Durum / yapılacak |
+| Konu | Durum |
 |---|---|
-| `/api/me` (kullanıcı + roller) endpoint'i | BFF'te var mı? Yoksa eklenmeli (FE rol guard'ı buna bağlı) |
-| CSRF cookie/header adları | BFF Spring Security CSRF konfigürasyonundaki gerçek adlar doğrulanmalı |
-| OpenAPI aggregation | Şimdilik servis-bazlı generate; ileride gateway'de merkezi spec (`OPENAPI.md` §10) |
-| Spec açık olmayan servisler | subscription/billing/ticket/usage vb. için REST controller + Springdoc eklendikçe client genişler |
-| Prod serve stratejisi | SPA'yı BFF mi serve edecek, yoksa nginx + aynı origin mi |
-| API versiyonlama | `/api` → `/api/v1` kararı (`OPENAPI.md` §10) FE base path'ini etkiler |
+| `/api/me` (kullanıcı + roller) | ✅ BFF'e eklendi — `GET /api/me` → `{username, email, fullName, roles[]}` |
+| CSRF cookie/header adları | ✅ Doğrulandı: cookie `XSRF-TOKEN`, header `X-XSRF-TOKEN` (axios'un default'uyla birebir uyumlu) |
+| 401 sözleşmesi | ✅ Session düşmüş `/api/**` XHR'ına 401 (302 değil) — interceptor planı geçerli |
+| OpenAPI aggregation | Servis-bazlı generate (8 servis, §5 tablosu); merkezi spec ileriki adım |
+| Spec açık olmayan servisler | Yalnızca **payment** ve **notification** (REST'siz; FE sayfası da yok) |
+| API versiyonlama | Karar: versiyonsuz `/api/**`; gateway **explicit** route kullanır (yeni servis = `gateway-server.yaml`'a route) |
+| Prod serve stratejisi | AÇIK: SPA'yı BFF mi serve edecek, yoksa nginx + aynı origin mi |
+| CUSTOMER self-servis | AÇIK: kullanıcı↔müşteri bağlantısı yok (Keycloak `sub` ≠ `customerId`); "kendi siparişlerim/faturalarım" için identity profili ile customer kaydı ilişkilendirilmeli. İlk sürüm CSR/ADMIN odaklı ilerlemeli |
+
+### Sayfa ↔ endpoint eşlemesi (backend HAZIR)
+
+| FE sayfası | Endpoint'ler |
+|---|---|
+| **auth** | `GET /api/me` (BFF) · login `GET /oauth2/authorization/keycloak` · logout `POST /logout` |
+| **customers** | `GET /api/customers?q=&page=&size=` (RestPage) · `GET /{id}` · `POST` · `PUT /{id}` (CSR/ADMIN) |
+| **orders** | `POST /api/orders` · `GET /api/orders/{id}` (saga poll) · `GET /api/orders?customerId=&status=` (sayfalı, CSR/ADMIN) |
+| **tariffs** | `GET /api/catalog/tariffs` (sayfalı) · `GET /{code}` · `POST` (CATALOG_ADMIN) |
+| **subscriptions** | `GET /api/subscriptions?customerId=&status=` (sayfalı) · `GET /{id}` (CSR/ADMIN) |
+| **billing** | `GET /api/billing/invoices?customerId=&status=` (sayfalı) · `GET /invoices/{id}` (kalemli) · `GET /bill-cycles` (BILLING_ADMIN/CSR/ADMIN) |
+| **tickets** | `GET/POST /api/tickets` · `GET /{id}` · `PATCH /{id}/status` · `PATCH /{id}/assignee` · `POST /{id}/comments` (CSR/ADMIN) |
+| **usage** (ops.) | `GET /api/usage/records?subscriptionId=` · `GET /api/usage/summary?subscriptionId=&from=&to=` (CSR/ADMIN) |
 
 ---
 
