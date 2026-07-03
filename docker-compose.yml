@@ -185,7 +185,9 @@ services:
     image: kafbat/kafka-ui:latest
     container_name: telcocrm-kafka-ui
     ports:
-      - "8080:8080"          # http://localhost:8080
+      # Host portu doluysa (8080 sik cakisan bir port) env ile ez:
+      #   KAFKA_UI_PORT=8099 docker compose up -d kafka-ui
+      - "${KAFKA_UI_PORT:-8080}:8080"          # http://localhost:8080 (veya KAFKA_UI_PORT)
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19092

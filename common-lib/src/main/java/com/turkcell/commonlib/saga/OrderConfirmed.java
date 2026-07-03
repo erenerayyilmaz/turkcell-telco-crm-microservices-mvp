@@ -12,6 +12,7 @@ public record OrderConfirmed(
         UUID eventId,
         UUID orderId,
         UUID customerId,
+        UUID subscriptionId,
         String tariffCode,
         String msisdn,
         BigDecimal amount,

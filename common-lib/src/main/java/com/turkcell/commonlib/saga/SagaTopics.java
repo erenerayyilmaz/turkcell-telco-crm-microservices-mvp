@@ -8,6 +8,7 @@ package com.turkcell.commonlib.saga;
  *   <li>{@link #SUBSCRIPTION_COMMANDS} / {@link #PAYMENT_COMMANDS}: orchestrator (order) -> participant komutlari.</li>
  *   <li>{@link #SAGA_REPLIES}: participant -> orchestrator reply'lari.</li>
  *   <li>{@link #ORDER_EVENTS}: orchestrator -> dis dunyaya domain event'leri (notification/billing).</li>
+ *   <li>{@link #INVOICE_EVENTS}: payment -> billing fatura tahsilat reply'lari (recurring billing).</li>
  * </ul>
  */
 public final class SagaTopics {
@@ -19,4 +20,5 @@ public final class SagaTopics {
     public static final String PAYMENT_COMMANDS = "payment-commands";
     public static final String SAGA_REPLIES = "saga-replies";
     public static final String ORDER_EVENTS = "order-events";
+    public static final String INVOICE_EVENTS = "invoice-events";
 }

@@ -41,9 +41,13 @@ public class OrderEventHandler {
             return;
         }
 
-        // Is: yeni abone icin aylik fatura dongusu ac.
+        // Is: yeni abone icin aylik fatura dongusu ac. Abonelik + ucret bilgisi
+        // bill-run'da fatura kesmek icin saklanir (V3 recurring billing).
         BillCycle cycle = new BillCycle();
         cycle.setCustomerId(event.customerId());
+        cycle.setSubscriptionId(event.subscriptionId());
+        cycle.setMonthlyFee(event.amount());
+        cycle.setCurrency(event.currency() != null ? event.currency() : "TRY");
         cycle.setDayOfMonth((short) 1);
         cycle.setNextRunDate(LocalDate.now().withDayOfMonth(1).plusMonths(1));
         billCycleRepository.save(cycle);
