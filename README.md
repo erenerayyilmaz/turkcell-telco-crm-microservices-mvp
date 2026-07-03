@@ -303,11 +303,13 @@ Aşağıdaki yol haritası **product-ready** olmak için kalan işleri öncelik 
 - ✅ **FE hazırlık API'leri** — BFF `/api/me` + 401 sözleşmesi; subscription/billing okuma API'leri; order list; customer sayfalama/arama/create/update. Bkz. §14 ve [FRONTEND.md](FRONTEND.md).
 - **Saga sertleştirme** — compensation ack'lerini bekleyen iki-fazlı iptal; saga timeout job'ının prod ayarları. *(Bilinçli erteleme: Faz 3'te — saga çekirdeğine önce Testcontainers güvence ağı kurulup öyle dokunulacak.)*
 
-### Faz 3 — Test & kalite (kritik: şu an ~0 kapsam)
-- **Unit test** — handler / business-rule / mapper; özellikle saga durum geçişleri ve compensation.
-- **Integration test** — **Testcontainers** (Postgres + Kafka + Redis): outbox→consume→inbox idempotency, saga happy-path + `_FAIL` compensation.
+### Faz 3 — Test & kalite (başladı)
+- ✅ **Test altyapısı** — JaCoCo (tüm modüller, `verify`'da rapor) + **Testcontainers 2.x** BOM (Docker Engine 29 uyumu; 1.x'in docker-java'sı yeni engine API'sinde 400 alır).
+- ✅ **İlk unit testler** — ticket durum makinesi (geçiş matrisi), identity uniqueness kuralları, billing bill-run matematiği (KDV/dönem/döngü ilerletme — canlı e2e değerlerinin regresyon güvencesi).
+- ✅ **İlk entegrasyon testi (kalıp)** — `OrderEventHandlerIntegrationTest`: gerçek Postgres (Testcontainers `@ServiceConnection`) + Flyway; inbox idempotency (aynı `eventId` × 2 → tek `bill_cycle`). Diğer consumer'lara aynı kalıp uygulanacak.
+- **Saga entegrasyon testleri** — happy-path + `_FAIL` compensation (Kafka'lı Testcontainers); ardından **saga sertleştirme** bu güvence ağıyla yapılacak.
 - **Contract / API test** — OpenAPI spec doğrulama; kritik akışlar için Postman/newman koleksiyonu CI'da.
-- **Coverage gate** — JaCoCo eşiği (örn. %70 satır) build'de zorunlu.
+- **Coverage gate** — kapsam büyüdükçe JaCoCo eşiği (örn. %70) build'de zorunlu hale getirilecek.
 
 ### Faz 4 — Paketleme, CI/CD & deployment
 - **Dockerfile** (servis başına, layered veya Jib) — şu an yalnızca altyapı compose'da; iş servislerinin imajı yok.
