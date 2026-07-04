@@ -145,12 +145,14 @@ public class PaymentSagaService {
 
         if (approved) {
             outbox.enqueue(SagaTopics.INVOICE_EVENTS, "InvoicePaid", cmd.invoiceId(),
-                    new InvoicePaid(UUID.randomUUID(), cmd.invoiceId(), payment.getId()));
+                    new InvoicePaid(UUID.randomUUID(), cmd.invoiceId(), payment.getId(),
+                            cmd.customerId(), cmd.amount(), cmd.currency()));
             log.info("payment: invoice={} otomatik tahsilat OK (payment={})", cmd.invoiceId(), payment.getId());
         } else {
             outbox.enqueue(SagaTopics.INVOICE_EVENTS, "InvoicePaymentFailed", cmd.invoiceId(),
                     new InvoicePaymentFailed(UUID.randomUUID(), cmd.invoiceId(),
-                            "tutar limiti asti: " + cmd.amount()));
+                            "tutar limiti asti: " + cmd.amount(),
+                            cmd.customerId(), cmd.amount(), cmd.currency()));
             log.info("payment: invoice={} otomatik tahsilat RED (tutar={})", cmd.invoiceId(), cmd.amount());
         }
 

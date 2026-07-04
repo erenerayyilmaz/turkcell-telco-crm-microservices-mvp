@@ -27,6 +27,7 @@ import com.turkcell.billingservice.repository.InvoiceRepository;
 import com.turkcell.billingservice.repository.PendingChargeRepository;
 import com.turkcell.billingservice.saga.OutboxWriter;
 import com.turkcell.commonlib.saga.ChargeInvoiceCommand;
+import com.turkcell.commonlib.saga.InvoiceGenerated;
 import com.turkcell.commonlib.saga.SagaTopics;
 
 /**
@@ -94,6 +95,15 @@ class BillRunServiceTest {
         assertThat(cmd.invoiceId()).isEqualTo(invoice.getId());
         assertThat(cmd.amount()).isEqualByComparingTo("299.88");
         assertThat(cmd.currency()).isEqualTo("TRY");
+
+        // Domain event: InvoiceGenerated invoice-events'e (G2, notification e-postasi).
+        ArgumentCaptor<Object> generatedCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(outbox).enqueue(eq(SagaTopics.INVOICE_EVENTS), eq("InvoiceGenerated"),
+                eq(invoice.getId()), generatedCaptor.capture());
+        InvoiceGenerated generated = (InvoiceGenerated) generatedCaptor.getValue();
+        assertThat(generated.customerId()).isEqualTo(invoice.getCustomerId());
+        assertThat(generated.grandTotal()).isEqualByComparingTo("299.88");
+        assertThat(generated.dueDate()).isEqualTo(LocalDate.of(2026, 7, 18));
 
         // Dongu +1 ay ilerledi.
         assertThat(cycle.getNextRunDate()).isEqualTo(LocalDate.of(2026, 8, 3));

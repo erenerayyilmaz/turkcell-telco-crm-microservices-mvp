@@ -26,6 +26,7 @@ import com.turkcell.billingservice.repository.InvoiceRepository;
 import com.turkcell.billingservice.repository.PendingChargeRepository;
 import com.turkcell.billingservice.saga.OutboxWriter;
 import com.turkcell.commonlib.saga.ChargeInvoiceCommand;
+import com.turkcell.commonlib.saga.InvoiceGenerated;
 import com.turkcell.commonlib.saga.SagaTopics;
 
 /**
@@ -116,6 +117,13 @@ public class BillRunService {
         invoiceLineRepository.save(line);
 
         addOverageLines(invoice, overages);
+
+        // Domain event: "faturaniz kesildi" (G2) - notification e-posta (mock) atar;
+        // billing'in kendi invoice-events consumer'i bu tipi atlar.
+        outbox.enqueue(SagaTopics.INVOICE_EVENTS, "InvoiceGenerated", invoice.getId(),
+                new InvoiceGenerated(UUID.randomUUID(), invoice.getId(), invoice.getCustomerId(),
+                        invoice.getSubscriptionId(), grandTotal, cycle.getCurrency(),
+                        invoice.getDueDate(), periodStart, periodEnd));
 
         // Otomatik tahsilat: payment ChargeInvoiceCommand'i isler, reply invoice-events'e gelir.
         outbox.enqueue(SagaTopics.PAYMENT_COMMANDS, "ChargeInvoiceCommand", invoice.getId(),
