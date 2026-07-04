@@ -11,6 +11,8 @@ package com.turkcell.commonlib.saga;
  *   <li>{@link #INVOICE_EVENTS}: payment -> billing fatura tahsilat reply'lari (recurring billing).</li>
  *   <li>{@link #QUOTA_EVENTS}: usage -> notification/billing kota esik + asim event'leri (kota zinciri).</li>
  *   <li>{@link #CUSTOMER_EVENTS}: customer -> dis dunyaya musteri yasam dongusu event'leri (KYC).</li>
+ *   <li>{@link #SUBSCRIPTION_EVENTS}: subscription -> dis dunyaya abonelik yasam dongusu event'leri
+ *       (suspend/reactivate/terminate).</li>
  * </ul>
  */
 public final class SagaTopics {
@@ -25,4 +27,5 @@ public final class SagaTopics {
     public static final String INVOICE_EVENTS = "invoice-events";
     public static final String QUOTA_EVENTS = "quota-events";
     public static final String CUSTOMER_EVENTS = "customer-events";
+    public static final String SUBSCRIPTION_EVENTS = "subscription-events";
 }

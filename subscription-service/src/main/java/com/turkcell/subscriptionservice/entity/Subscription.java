@@ -13,6 +13,8 @@ import jakarta.persistence.Table;
  * subscriptions tablosunu karsilar (Flyway V1 + V2).
  * Saga: reserve aninda PENDING olusur, ActivateSubscription ile ACTIVE olur,
  * compensation'da CANCELLED'a duser. order_id saga korelasyonudur.
+ * Yasam dongusu (G4, FR-14): ACTIVE -> SUSPENDED -> ACTIVE (reactivate) ve
+ * ACTIVE/SUSPENDED -> TERMINATED (terminal; MSISDN havuza doner).
  */
 @Entity
 @Table(name = "subscriptions")
@@ -28,6 +30,7 @@ public class Subscription {
     private String tariffCode;
     private String status;
     private Instant activatedAt;
+    private Instant suspendedAt;
     private Instant terminatedAt;
 
     public UUID getId() { return id; }
@@ -44,6 +47,8 @@ public class Subscription {
     public void setStatus(String status) { this.status = status; }
     public Instant getActivatedAt() { return activatedAt; }
     public void setActivatedAt(Instant activatedAt) { this.activatedAt = activatedAt; }
+    public Instant getSuspendedAt() { return suspendedAt; }
+    public void setSuspendedAt(Instant suspendedAt) { this.suspendedAt = suspendedAt; }
     public Instant getTerminatedAt() { return terminatedAt; }
     public void setTerminatedAt(Instant terminatedAt) { this.terminatedAt = terminatedAt; }
 }

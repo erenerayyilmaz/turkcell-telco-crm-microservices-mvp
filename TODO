@@ -1,26 +1,29 @@
 GUNCEL DEVAM NOKTASI -> README.md "DEVAM NOKTASI" + "Faz 3.5" bolumleri (tek kaynak orasidir).
 
-Kisa ozet (2026-07-04, G1-G3 merge sonrasi):
-- Faz 1 + Faz 2 tamam; 65 test yesil (Kafka'li saga IT + inbox-idempotency + kota/KYC IT'leri)
+Kisa ozet (2026-07-04, G1-G4 sonrasi):
+- Faz 1 + Faz 2 tamam; 75 test yesil (Kafka'li saga IT + inbox-idempotency + kota/KYC/lifecycle IT'leri)
 - FE Sprint 3 merge edildi (PR #21); Track A siradaki is: Sprint 4 (Billing + Subscriptions sayfalari)
-- Faz 3.5 basladi: G1 kota zinciri (PR #23), G2 fatura bildirimleri (PR #24), G3 KYC (PR #25) TAMAM
+- Faz 3.5: G1 kota (PR #23), G2 fatura bildirim (PR #24), G3 KYC (PR #25), G4 abonelik yasam dongusu TAMAM
 - DIKKAT (G3 davranis degisikligi): yeni musteri PENDING dogar; siparis icin belge + ADMIN kyc/approve gerekir
+- G4 notu: suspend/reactivate/terminate CSR/ADMIN; terminate MSISDN'i havuza dondurur; audit actor'lu
 - Saga sertlestirme BACKLOG'da (docx gereksinimi degil; FR-10/12 karsilandi, IT'li)
 
 ONCELIK SIRASI — Faz 3.5 docx bosluklari (detay: README "Faz 3.5" tablosu):
   G1  Kota zinciri + CDR simulatoru        TAMAM (PR #23)
   G2  Fatura bildirimleri                  TAMAM (PR #24)
   G3  KYC mini akisi                       TAMAM (PR #25)
-  G4  Abonelik suspend/reactivate/terminate (FR-14)  <- BURADAN DEVAM
-  G5  Manuel siparis iptali POST /orders/{id}/cancel
+  G4  Abonelik suspend/reactivate/terminate TAMAM
+  G5  Manuel siparis iptali POST /orders/{id}/cancel  <- BURADAN DEVAM
   G6  Fatura PDF (FR-23, MinIO'suz basit)
   G7  Ticket otomasyonu (TicketOpened->notification, slaDueAt hesabi) (FR-32/33)
+      (G7'de once sor: outbox'i common-lib'e cikarayim mi? — 7. kopya yerine)
   G8  Odeme dunning retry 24/72/168 saat (FR-27)
   G9  Kucukler: TCKN/VKN dogrulama, soft-delete, opt-in/out
 
 Paralel/sonrasi:
 - Track A (FE): Sprint 4 (Billing + Subscriptions sayfalari); hazir API'ler: kota karti
-  GET /api/usage/quota, KYC onay/red + adres/belge endpoint'leri
+  GET /api/usage/quota, KYC onay/red + adres/belge endpoint'leri,
+  G4 abonelik aksiyonlari POST /api/subscriptions/{id}/suspend|reactivate|terminate
 - Faz 4: Dockerfile + GitHub Actions CI test-gate (Faz 3.5 ile paralel yurutulebilir);
   typed-client (generate:api) karari CI ile birlikte
 
