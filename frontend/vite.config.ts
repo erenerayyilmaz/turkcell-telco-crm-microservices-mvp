@@ -23,5 +23,8 @@ export default defineConfig({
     css: false,
     // Yalniz birim/bilesen testleri (src). Playwright E2E'leri (e2e/*.spec.ts) haric.
     include: ["src/**/*.test.{ts,tsx}"],
+    // Windows'ta varsayilan 'forks' pool'u child-process IPC'de takilabiliyor
+    // (worker'lar idle kalir, kosu asilir). 'threads' (worker_threads) stabil calisir.
+    pool: "threads",
   },
 });
