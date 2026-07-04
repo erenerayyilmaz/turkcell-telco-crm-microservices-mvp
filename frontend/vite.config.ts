@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -13,5 +14,17 @@ export default defineConfig({
       "/login": { target: "http://localhost:9000", changeOrigin: true },
       "/logout": { target: "http://localhost:9000", changeOrigin: true },
     },
+  },
+  test: {
+    globals: true,
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    restoreMocks: true,
+    css: false,
+    // Yalniz birim/bilesen testleri (src). Playwright E2E'leri (e2e/*.spec.ts) haric.
+    include: ["src/**/*.test.{ts,tsx}"],
+    // Windows'ta varsayilan 'forks' pool'u child-process IPC'de takilabiliyor
+    // (worker'lar idle kalir, kosu asilir). 'threads' (worker_threads) stabil calisir.
+    pool: "threads",
   },
 });
