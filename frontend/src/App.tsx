@@ -6,6 +6,7 @@ import { CustomersPage } from "./pages/customers/CustomersPage";
 import { TicketsPage } from "./pages/tickets/TicketsPage";
 import { TicketDetailPage } from "./pages/tickets/TicketDetailPage";
 import { OrdersPage } from "./pages/orders/OrdersPage";
+import { TariffsPage } from "./pages/tariffs/TariffsPage";
 import { PageStub } from "./components/PageStub";
 
 export function App() {
@@ -45,7 +46,8 @@ export function App() {
             </RequireRole>
           }
         />
-        <Route path="/tariffs" element={<PageStub title="Tarifeler" sprint="Sprint 3: katalog listesi + CATALOG_ADMIN tarife olusturma" />} />
+        {/* Okuma her kimlik dogrulanmis role acik oldugu icin RequireRole yok (menu de rolsuz). */}
+        <Route path="/tariffs" element={<TariffsPage />} />
         <Route path="/subscriptions" element={<PageStub title="Abonelikler" sprint="Sprint 4: abonelik listesi (musteri filtresi)" />} />
         <Route path="/billing" element={<PageStub title="Faturalar" sprint="Sprint 4: fatura listesi + kalem detayi (BILLING_ADMIN)" />} />
       </Route>
