@@ -19,7 +19,12 @@ spring:
             - id: gateway-proxy
               uri: lb://gateway-server
               predicates:
-                - Path=/api/**
+                # Yalniz downstream servis prefix'leri gateway'e forward edilir.
+                # /api/me BFF-yereldir (MeController) ve BILINCLI olarak DISARIDA:
+                # Path=/api/** olsaydi RouterFunction mapping'i @GetMapping'ten once
+                # eslesir, /api/me'yi de gateway'e gonderirdi -> gateway 404 -> oturum
+                # acikken FE'nin /api/me cagrisi kirilir (login tamamlanamaz).
+                - Path=/api/auth/**,/api/identity/**,/api/customers/**,/api/catalog/**,/api/products/**,/api/orders/**,/api/subscriptions/**,/api/usage/**,/api/billing/**,/api/invoices/**,/api/payments/**,/api/notifications/**,/api/tickets/**
               filters:
                 # Session'da tutulan access token'i Authorization: Bearer
                 # header'i olarak gateway'e iletir.
