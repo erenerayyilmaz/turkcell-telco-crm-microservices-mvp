@@ -84,6 +84,50 @@ export interface TariffResponse {
   status: string;
 }
 
+/** billing-service InvoiceResponse — sayfali fatura listesi kalemi. */
+export interface InvoiceResponse {
+  id: string;
+  customerId: string;
+  subscriptionId: string | null;
+  billCycleId: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  subTotal: number;
+  tax: number;
+  grandTotal: number;
+  status: string;
+  dueDate: string | null;
+  issuedAt: string | null;
+}
+
+/** billing-service InvoiceLineResponse — fatura kalemi (aciklama + adet + birim fiyat). */
+export interface InvoiceLineResponse {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+/** GET /api/billing/invoices/{id} — fatura + kalemleri. */
+export interface InvoiceDetailResponse {
+  invoice: InvoiceResponse;
+  lines: InvoiceLineResponse[];
+}
+
+/** subscription-service SubscriptionResponse — abonelik + yasam dongusu zaman damgalari. */
+export interface SubscriptionResponse {
+  id: string;
+  orderId: string | null;
+  customerId: string;
+  msisdn: string | null;
+  tariffCode: string;
+  status: string;
+  activatedAt: string | null;
+  suspendedAt: string | null;
+  terminatedAt: string | null;
+}
+
 /** identity-service UserProfileResponse — "Bana ata" icin keycloakId cozumu. */
 export interface UserProfileResponse {
   id: string;
