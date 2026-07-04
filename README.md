@@ -278,11 +278,11 @@ Temel mimari oturdu: config, service discovery, gateway + BFF, Keycloak güvenli
 Outbox/Inbox, Saga orchestration, mediator-tabanlı CQRS, rate limiting ve observability entegre.
 Frontend de artık bu repodadır (monorepo, `frontend/`); mimari kararları için [FRONTEND.md](FRONTEND.md).
 
-### 📍 DEVAM NOKTASI (son güncelleme: 2026-07-04, G3 KYC mini akışı sonrası)
+### 📍 DEVAM NOKTASI (son güncelleme: 2026-07-04, G4 abonelik yaşam döngüsü sonrası)
 
-**Durum:** Faz 1 ✅ · Faz 2 ✅ · Faz 3 ilerliyor · **Faz 3.5: G1 ✅ G2 ✅ G3 ✅** (kota zinciri + fatura
-bildirimleri + KYC; 65 test yeşil) · FE Sprint 3 merge edildi (PR #21) · Sıradaki backend işi:
-**G4 abonelik yaşam döngüsü** (typed-client geçişi bilinçli olarak Faz 4 CI kararına ertelendi).
+**Durum:** Faz 1 ✅ · Faz 2 ✅ · Faz 3 ilerliyor · **Faz 3.5: G1 ✅ G2 ✅ G3 ✅ G4 ✅** (kota zinciri +
+fatura bildirimleri + KYC + abonelik yaşam döngüsü; 75 test yeşil) · FE Sprint 3 merge edildi (PR #21) ·
+Sıradaki backend işi: **G5 manuel sipariş iptali** (typed-client geçişi bilinçli olarak Faz 4 CI kararına ertelendi).
 > ⚠️ Davranış değişikliği (G3): **yeni müşteri artık `PENDING` doğar**; sipariş verebilmesi için belge
 > yükleme + `POST /api/customers/{id}/kyc/approve` (ADMIN) gerekir. Demo seed müşterisi ACTIVE kalır.
 
@@ -297,7 +297,7 @@ Kural: [FRONTEND.md](FRONTEND.md) FE track'ine, bu README'nin yol haritası back
 
 | Sıradaki iş | Track A — Frontend (`frontend/`) | Track B — Backend |
 |---|---|---|
-| **1 (buradan devam)** | Sprint 4: Billing (fatura listesi + kalem detayı) ve Subscriptions sayfaları; G-işleri API çıkardıkça UI bağlanır (G1 kota kartı hazır: `GET /api/usage/quota`; G3 KYC onay/red butonları + belge listesi hazır; G4 abonelik aksiyonları) | **Faz 3.5:** G1 ✅ G2 ✅ G3 ✅ → sıradaki **G4 abonelik yaşam döngüsü** (tablo aşağıda) |
+| **1 (buradan devam)** | Sprint 4: Billing (fatura listesi + kalem detayı) ve Subscriptions sayfaları; G-işleri API çıkardıkça UI bağlanır (G1 kota kartı hazır: `GET /api/usage/quota`; G3 KYC onay/red butonları + belge listesi hazır; G4 abonelik aksiyonları hazır: `POST /api/subscriptions/{id}/suspend\|reactivate\|terminate`) | **Faz 3.5:** G1 ✅ G2 ✅ G3 ✅ G4 ✅ → sıradaki **G5 manuel sipariş iptali** (tablo aşağıda) |
 | 2 | Typed-client (`generate:api`) geçişi — Faz 4 CI kararıyla birlikte | **Faz 4:** Dockerfile + GitHub Actions CI (test gate) — Faz 3.5 ile paralel yürüyebilir |
 
 **Açık kararlar (bloklamıyor):** CUSTOMER self-servisi için kullanıcı↔müşteri bağlantısı (Keycloak `sub` ≠ `customerId`;
@@ -310,7 +310,7 @@ docker compose up -d                      # altyapı (keycloak realm değiştiys
 ./mvnw clean install -DskipTests          # JAVA_HOME = JDK 21 olmalı
 # servisleri sırayla başlat (bkz. "Başlangıç" bölümü) — 14 servis
 cd frontend && npm install && npm run dev # http://localhost:5173 → "Giriş yap" → csruser/test12345
-./mvnw test                               # 65 test (Kafka'lı saga IT dahil; Docker açık olmalı)
+./mvnw test                               # 75 test (Kafka'lı saga IT dahil; Docker açık olmalı)
 ```
 > Windows notu: Docker Desktop'ta Testcontainers "Docker bulunamadı" derse `~/.testcontainers.properties`
 > içine `docker.host=npipe:////./pipe/dockerDesktopLinuxEngine` yaz (Linux/CI'da gerekmez).
@@ -325,7 +325,7 @@ MVP analiz dokümanıyla yapılan kıyasın (2026-07-04) çıktısı. Sıra = ö
 | **G1 ✅** | **Kota zinciri + CDR simülatörü** — TAMAMLANDI | FR-17..20, senaryo 14.3, §10.5 | `OrderConfirmed` artık tarife haklarını taşır (event-carried state) → usage-service hak fotoğrafı + dönem kotası açar; kullanım düştükçe kota azalır (aylık lazy rollover); %80/%100 eşiğinde `QuotaThresholdReached`, kota bitince `OverageRecorded` → `quota-events` (usage outbox); notification eşik SMS'i atar (`QUOTA_WARNING_80/QUOTA_EXCEEDED`), billing aşımı `pending_charges`'a biriktirip bill-run'da KDV'li fatura kalemi yapar; kalan kota: `GET /api/usage/quota?subscriptionId=` (CSR/ADMIN); CDR simülatörü: `POST /api/usage/simulate` (dev profili + ADMIN, `usage-events`'e rastgele CDR basar) |
 | **G2 ✅** | **Fatura bildirimleri** — TAMAMLANDI | senaryo 14.2, §8.8 | bill-run artık `InvoiceGenerated` domain event'i de yayınlar (billing outbox → `invoice-events`; billing'in kendi consumer'ı tipi atlar); `InvoicePaid`/`InvoicePaymentFailed` reply'ları customerId/amount/currency taşır (event-carried state, payment `ChargeInvoiceCommand`'dan bilir); notification `invoice-events`'i kendi group'uyla dinleyip üçünü de EMAIL (mock) bildirimine çevirir (`INVOICE_GENERATED/INVOICE_PAID/INVOICE_PAYMENT_FAILED` şablonları, V5); inbox-idempotency IT aynı kalıpla |
 | **G3 ✅** | **KYC mini akışı** — TAMAMLANDI | FR-02/03, senaryo 14.1, §10.1 | `Address`/`Document` varlıkları (V1 tabloları artık kullanılıyor) + adres/belge endpoint'leri (`POST/GET /{id}/addresses`, `POST/GET /{id}/documents`; belge fileRef mock, MinIO Faz 6); yeni müşteri **PENDING** doğar; `POST /{id}/kyc/approve\|reject` (ADMIN) — onay şartı: PENDING + ≥1 belge → ACTIVE + belgeler `verifiedAt` damgalı + `CustomerKYCApproved` outbox'tan `customer-events`'e (customer-service'e stream-kafka + outbox/poller eklendi); notification "hesabınız aktif" SMS'i atar (`KYC_APPROVED` şablonu, V6); red → REJECTED. Order ACTIVE şartını zaten aradığı için onay öncesi sipariş engellenir |
-| **G4** | Abonelik yaşam döngüsü | FR-14, §8.4 | `suspend` / `reactivate` / `terminate` endpoint'leri (CSR/ADMIN) + durum makinesi + audit; FE Subscriptions sayfası aksiyonları Sprint 4'te bağlanır |
+| **G4 ✅** | **Abonelik yaşam döngüsü** — TAMAMLANDI | FR-14, §8.4 | `POST /api/subscriptions/{id}/suspend\|reactivate\|terminate` (CSR/ADMIN); durum makinesi: ACTIVE→SUSPENDED (suspend), SUSPENDED→ACTIVE (reactivate, `suspendedAt` temizlenir), ACTIVE/SUSPENDED→TERMINATED (terminal; MSISDN havuza FREE döner, aktif SIM'ler DEACTIVATED); geçersiz geçiş → 409 `SUBSCRIPTION_INVALID_STATE`; audit `actorUserId` (JWT sub) ile yazılır (§13); `SubscriptionSuspended/Reactivated/Terminated` → `subscription-events` (mevcut outbox) → notification SMS (V7 şablonları). Not: `SubscriptionReactivated` docx §8.4 publish listesinde yok, simetri için bilinçli eklendi. FE Subscriptions sayfası aksiyonları Sprint 4'te bağlanır |
 | **G5** | Manuel sipariş iptali | §8.3 | `POST /api/orders/{id}/cancel` — mevcut compensation altyapısını yeniden kullanır (yalnız terminal-öncesi durumlar; ulaşılan adıma göre release/refund) |
 | **G6** | Fatura PDF | FR-23 | `GET /invoices/{id}/pdf` — basit PDF üretimi (OpenPDF vb.); MinIO/object-storage taşıması Faz 6'da kalır |
 | **G7** | Ticket otomasyonu | FR-32/33 | `TicketOpened` eventi → notification; açılışta önceliğe göre `slaDueAt` otomatik hesap + basit auto-assign |
@@ -344,6 +344,7 @@ el yazımı mapper (docx MapStruct) · `Idempotency-Key`/`Correlation-Id` header
 OTel trace korelasyonu · FE SPA (docx'te scope-out — BFF konusunu sergilemek için bilinçli eklendi).
 
 ### ✅ Tamamlananlar
+- **Abonelik yaşam döngüsü (G4, Faz 3.5)** — suspend/reactivate/terminate REST işlemleri (CSR/ADMIN, ilk yazma endpoint'leri; oluşturma yolu saga'da kalır); terminate MSISDN'i havuza döndürür + SIM'i kapatır; audit artık actor'lu (`AuditWriter`); üç domain event mevcut subscription outbox'ından `subscription-events`'e, notification SMS'e çevirir (V7). Migration gerekmedi (`suspended_at` V1'den beri vardı, entity'ye bağlandı).
 - **KYC mini akışı (G3, Faz 3.5)** — yeni müşteri PENDING doğar; adres/belge API'leri (fileRef mock); ADMIN onay/red durum makinesi (onay şartı ≥1 belge); `CustomerKYCApproved` → `customer-events` (customer outbox V3) → notification SMS (V6). Not: `CustomerMapper` artık `createdAt`'i damgalar (örtük NOT NULL hatası giderildi).
 - **Fatura bildirimleri (G2, Faz 3.5)** — bill-run `InvoiceGenerated` yayınlar; payment reply'ları müşteri/tutar taşır; notification `invoice-events`'ten üç fatura event'ini de EMAIL (mock) bildirimine çevirir (V5 şablonları + inbox IT).
 - **Kota zinciri + CDR simülatörü (G1, Faz 3.5)** — `quotas`/`subscription_entitlements` (usage V4-V5) + usage-service outbox → `quota-events`; eşik SMS'leri (notification V4 şablonları) + `pending_charges` → bill-run aşım kalemi (billing V4). Aşım birim fiyatları billing config'te (`billing.overage.*`; ingest anında dondurulur). CDR simülatörü dev-profili endpoint'idir; kayıtlar gerçek Kafka yolundan akar.

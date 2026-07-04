@@ -7,10 +7,11 @@ spring:
   # --- Tuketiciler: order-events (OrderConfirmed/OrderCancelled -> bildirim) +
   #     quota-events (QuotaThresholdReached -> %80/%100 esik SMS'i) +
   #     invoice-events (InvoiceGenerated/InvoicePaid/InvoicePaymentFailed -> EMAIL) +
-  #     customer-events (CustomerKYCApproved -> hesap aktif SMS'i). Inbox idempotent.
+  #     customer-events (CustomerKYCApproved -> hesap aktif SMS'i) +
+  #     subscription-events (Suspended/Reactivated/Terminated -> hat durumu SMS'i). Inbox idempotent.
   cloud:
     function:
-      definition: consumeOrderEvents;consumeQuotaEvents;consumeInvoiceEvents;consumeCustomerEvents
+      definition: consumeOrderEvents;consumeQuotaEvents;consumeInvoiceEvents;consumeCustomerEvents;consumeSubscriptionEvents
     stream:
       bindings:
         consumeOrderEvents-in-0:
@@ -24,6 +25,9 @@ spring:
           group: notification-service-group
         consumeCustomerEvents-in-0:
           destination: customer-events
+          group: notification-service-group
+        consumeSubscriptionEvents-in-0:
+          destination: subscription-events
           group: notification-service-group
       kafka:
         binder:

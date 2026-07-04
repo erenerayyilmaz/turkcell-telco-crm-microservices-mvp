@@ -11,5 +11,6 @@ public record SubscriptionResponse(
         String tariffCode,
         String status,
         Instant activatedAt,
+        Instant suspendedAt,
         Instant terminatedAt) {
 }
