@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Descriptions, Drawer, Result, Space, Spin, Steps, Tag, Typography } from "antd";
+import { Button, Descriptions, Drawer, Result, Space, Spin, Steps, Tag, Typography } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/axios";
 import { ShortId } from "../../components/ShortId";
@@ -78,20 +78,26 @@ interface Props {
 export function OrderSagaDrawer({ orderId, onClose }: Props) {
   const queryClient = useQueryClient();
   const lastActiveRef = useRef<string | null>(null);
+  const invalidatedRef = useRef(false);
 
-  // Farkli bir siparis izlenmeye baslaninca gecmis durum bilgisini sifirla.
+  // Farkli bir siparis izlenmeye baslaninca gecmis durum / invalidate bilgisini sifirla.
   useEffect(() => {
     lastActiveRef.current = null;
+    invalidatedRef.current = false;
   }, [orderId]);
 
-  const { data: order, isError } = useQuery({
-    queryKey: ["order", orderId],
+  const { data: order, isError, refetch } = useQuery({
+    queryKey: ["orders", orderId],
     queryFn: async () => {
       const res = await api.get<ApiResponse<OrderResponse>>(`/api/orders/${orderId}`);
       return res.data.data!;
     },
     enabled: !!orderId,
     refetchInterval: (query) => {
+      // Kalici hatada (404/403/5xx) sonsuz polling yapma; kullanici "Yeniden dene" ile baslatir.
+      if (query.state.status === "error") {
+        return false;
+      }
       const status = query.state.data?.status;
       return status && TERMINAL_STATUSES.includes(status) ? false : 2000;
     },
@@ -104,8 +110,10 @@ export function OrderSagaDrawer({ orderId, onClose }: Props) {
     if (order.status === "PENDING_PAYMENT" || order.status === "PAID") {
       lastActiveRef.current = order.status;
     }
-    if (TERMINAL_STATUSES.includes(order.status)) {
-      // Liste sayfasindaki durum kolonu da guncellensin.
+    if (TERMINAL_STATUSES.includes(order.status) && !invalidatedRef.current) {
+      // Liste sayfasindaki durum kolonu da guncellensin (queryKey ["orders", id] de
+      // ayni prefix'te oldugu icin yalnizca bir kez invalidate edilir; dongu olmaz).
+      invalidatedRef.current = true;
       void queryClient.invalidateQueries({ queryKey: ["orders"] });
     }
   }, [order, queryClient]);
@@ -114,8 +122,18 @@ export function OrderSagaDrawer({ orderId, onClose }: Props) {
   const isTerminal = !!order && TERMINAL_STATUSES.includes(order.status);
 
   return (
-    <Drawer title="Siparis takibi" width={480} open={!!orderId} onClose={onClose} destroyOnClose>
-      {isError && <Result status="warning" title="Siparis durumu alinamadi" />}
+    <Drawer title="Siparis takibi" width={480} open={!!orderId} onClose={onClose} destroyOnHidden>
+      {isError && (
+        <Result
+          status="warning"
+          title="Siparis durumu alinamadi"
+          extra={
+            <Button type="primary" onClick={() => void refetch()}>
+              Yeniden dene
+            </Button>
+          }
+        />
+      )}
       {!isError && !order && <Spin style={{ display: "block", margin: "80px auto" }} size="large" />}
       {!isError && order && view && (
         <Space direction="vertical" size="large" style={{ width: "100%" }}>

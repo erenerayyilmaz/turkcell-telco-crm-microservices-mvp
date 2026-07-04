@@ -18,6 +18,9 @@ interface Props {
  */
 export function CustomerSelect({ value, onChange, placeholder, style, allowClear }: Props) {
   const [search, setSearch] = useState("");
+  // Secim sonrasi arama sifirlanip liste degisince etiket ham UUID'ye dusmesin diye
+  // son secilen secenek saklanir ve listede yoksa basa eklenir.
+  const [selected, setSelected] = useState<{ value: string; label: string } | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   const { data, isFetching } = useQuery({
@@ -38,6 +41,13 @@ export function CustomerSelect({ value, onChange, placeholder, style, allowClear
     debounceRef.current = setTimeout(() => setSearch(text), 400);
   };
 
+  const options = (data?.content ?? []).map((c) => ({
+    value: c.id,
+    label: `${c.firstName} ${c.lastName} (${c.id.slice(0, 8)}…)`,
+  }));
+  const mergedOptions =
+    selected && !options.some((o) => o.value === selected.value) ? [selected, ...options] : options;
+
   return (
     <Select
       showSearch
@@ -45,14 +55,14 @@ export function CustomerSelect({ value, onChange, placeholder, style, allowClear
       onSearch={handleSearch}
       loading={isFetching}
       value={value}
-      onChange={(v) => onChange?.(v)}
+      onChange={(v) => {
+        setSelected(v ? (mergedOptions.find((o) => o.value === v) ?? null) : null);
+        onChange?.(v);
+      }}
       placeholder={placeholder ?? "Musteri ara (ad / soyad / TCKN)"}
       style={style}
       allowClear={allowClear}
-      options={(data?.content ?? []).map((c) => ({
-        value: c.id,
-        label: `${c.firstName} ${c.lastName} (${c.id.slice(0, 8)}…)`,
-      }))}
+      options={mergedOptions}
     />
   );
 }

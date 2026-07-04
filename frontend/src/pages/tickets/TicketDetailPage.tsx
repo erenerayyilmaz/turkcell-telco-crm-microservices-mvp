@@ -141,6 +141,9 @@ export function TicketDetailPage() {
   });
 
   const handleAssignOther = () => {
+    if (assign.isPending) {
+      return; // Enter ile cift gonderimi engelle
+    }
     const value = assigneeInput.trim();
     if (!UUID_RE.test(value)) {
       message.error("Gecersiz UUID formati");
@@ -236,6 +239,7 @@ export function TicketDetailPage() {
           <Button
             icon={<UserAddOutlined />}
             loading={assign.isPending && assign.variables === null}
+            disabled={assign.isPending && assign.variables !== null}
             onClick={() => assign.mutate(null)}
           >
             Bana ata
@@ -244,11 +248,12 @@ export function TicketDetailPage() {
             <Input
               placeholder="Atanacak kullanicinin Keycloak UUID'si"
               value={assigneeInput}
+              disabled={assign.isPending}
               onChange={(e) => setAssigneeInput(e.target.value)}
               onPressEnter={handleAssignOther}
             />
             <Button
-              loading={assign.isPending && assign.variables === assigneeInput.trim()}
+              loading={assign.isPending && assign.variables !== null}
               onClick={handleAssignOther}
             >
               Ata
@@ -285,12 +290,12 @@ export function TicketDetailPage() {
           form={commentForm}
           layout="vertical"
           style={{ marginTop: 8 }}
-          onFinish={({ body }) => addComment.mutate(body)}
+          onFinish={({ body }) => addComment.mutate(body.trim())}
         >
           <Form.Item
             name="body"
             rules={[
-              { required: true, message: "Yorum bos olamaz" },
+              { required: true, whitespace: true, message: "Yorum bos olamaz" },
               { max: 2000, message: "En fazla 2000 karakter" },
             ]}
           >

@@ -182,7 +182,7 @@ export function OrdersPage() {
         onOk={() => form.submit()}
         okText="Siparis ver"
         confirmLoading={placeOrder.isPending}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={(values) => placeOrder.mutate(values)}>
           <Form.Item
