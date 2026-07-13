@@ -72,6 +72,12 @@ defaults:
 services:
   config-server:
     port: 8889
+    env:
+      # platformEnv'deki SPRING_PROFILES_ACTIVE=prod, config-server'in kendi
+      # application.yaml'indaki `native` profilini ezer -> git backend'ine
+      # duser ve "git URI yok" hatasiyla cokerdi (minikube demosunda bulundu).
+      # native'i acikca geri ver; prod da kalsin (springdoc kapali vb.).
+      SPRING_PROFILES_ACTIVE: "native,prod"
   eureka-server:
     port: 8761
   gateway-server:
