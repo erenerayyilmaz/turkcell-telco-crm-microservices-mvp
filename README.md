@@ -10,7 +10,7 @@ entegre edilmiştir.
 - Adil Arkalı - https://github.com/adilrkl
 - Erol Koçoğlu - https://github.com/ErolKocoglu
 - Ayşe Ulaşlı - https://github.com/aaayseee
-- Eren Eray Yılmaz
+- Eren Eray Yılmaz - https://github.com/erenerayyilmaz
 
 ## Teknoloji Stack'i
 
