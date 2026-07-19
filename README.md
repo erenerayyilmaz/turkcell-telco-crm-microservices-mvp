@@ -7,9 +7,9 @@ entegre edilmiştir.
 
 ## Ekip
 
-- Adil Arkalı
-- Erol Koçoğlu
-- Ayşe Ulaşlı
+- Adil Arkalı - https://github.com/adilrkl
+- Erol Koçoğlu - https://github.com/ErolKocoglu
+- Ayşe Ulaşlı - https://github.com/aaayseee
 - Eren Eray Yılmaz
 
 ## Teknoloji Stack'i
